@@ -2,21 +2,21 @@ from dotenv import load_dotenv
 import os
 import googlemaps
 import requests
-
+import json
 from typing import Annotated, Literal, TypedDict
 from mcp.server.fastmcp import FastMCP
 
 # Load key into the environment
-load_dotenv("../keys.env")
+load_dotenv()
 
-os.environ['GOOGLE_API_KEY'] = os.environ['GEMINI_API_KEY']
-gmaps = googlemaps.Client(key=os.environ.get("GOOGLE_API_KEY"))
+os.environ['GOOGLE_API_KEY'] = os.environ['GOOGLE_API_KEY']
+gmaps = googlemaps.Client(key=os.environ.get("GOOGLE_MAP_API_KEY"))
 
 mcp = FastMCP("weather")
 
 # Define the tools that the agent can use
 @mcp.tool()
-async def latlon_geocoder(location: str) -> (float, float):
+async def latlon_geocoder(location: str) -> tuple[float, float]:
     """Converts a place name such as "Kalamazoo, Michigan" to latitude and longitude coordinates"""
     print(f"Geocoding {location} using Google Maps API")
     geocode_result = gmaps.geocode(location)
@@ -38,7 +38,7 @@ def retrieve_weather_data(latitude: float, longitude: float) -> str:
         response = requests.get(points_url, headers=headers)
         response.raise_for_status()  # Raise an exception for bad responses (4xx or 5xx)
         metadata = response.json()
-        # Access specific properties (adjust based on the API response structure)
+        # Access spscific properties (adjust based on the API response structure)
         forecast_url = metadata.get("properties", {}).get("forecast")
         
         print(f"Invoking {forecast_url}")
@@ -53,7 +53,8 @@ def retrieve_weather_data(latitude: float, longitude: float) -> str:
 @mcp.tool()
 async def get_weather_from_nws(latitude: float, longitude: float) -> str:
     """Fetches weather data from the National Weather Service API for a specific geographic location."""
-    return retrieve_weather_data(latitude, longitude)
+    weather_data = retrieve_weather_data(latitude, longitude)
+    return json.dumps(weather_data, ensure_ascii=False)
 
 if __name__ == '__main__':
     mcp.run(transport="sse")
